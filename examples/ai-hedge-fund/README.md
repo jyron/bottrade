@@ -10,6 +10,17 @@ Two modes are provided:
   model/data credentials.
 - `technical`: runs upstream technical components only on bars visible through BotTrade.
 
+## Compatibility and reproducibility
+
+The adapter targets the upstream repository's current `src` workflow, which remains the
+workflow documented in its root README. The experimental `v2` `AlphaModel` interface is a
+separate integration surface and is not imported by this adapter yet.
+
+For a result that another developer can reproduce, record the exact upstream revision with
+`git rev-parse HEAD` alongside the BotTrade run ID. In `technical` mode, strategy inputs are
+limited to the bars visible through the active BotTrade scenario; in `as-of` mode, also record
+the external data provider and model because those inputs remain caller-controlled.
+
 ## Setup
 
 ```bash
@@ -36,6 +47,8 @@ private unless `--publish` is supplied.
 
 - Run from a current AI Hedge Fund checkout so its `src` package is importable.
 - `technical` mode requires pandas and the upstream technical-analysis module.
+- If the upstream `src` workflow changes, check out the revision recorded with the original
+  run before reproducing it.
 - `as-of` results are self-attested when third-party data providers are involved.
 - Use `--run-id` to resume a BotTrade run after a local interruption.
 
