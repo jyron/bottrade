@@ -1,0 +1,25 @@
+name: Integration request
+description: Propose a new framework integration or developer-kit capability.
+title: "[Integration]: "
+labels: [enhancement]
+body:
+  - type: input
+    id: framework
+    attributes:
+      label: Framework or capability
+    validations:
+      required: true
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Benchmark use case
+      description: Explain the agent workflow and why MCP or the SDK does not already cover it.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Suggested acceptance criteria
+    validations:
+      required: true
+

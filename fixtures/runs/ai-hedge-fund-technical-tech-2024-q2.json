@@ -1,0 +1,25 @@
+{
+  "agent": {
+    "integration": "virattt/ai-hedge-fund adapter",
+    "mode": "technical",
+    "name": "ai-hedge-fund technical demo"
+  },
+  "generated_at": "2026-07-12T00:00:00Z",
+  "results": {
+    "final_equity": 99568.31311000006,
+    "liquidated": false,
+    "max_drawdown": 0.04245294850752211,
+    "return_pct": -0.431686889999939,
+    "sharpe": -0.03290015883200351,
+    "sortino": -0.02869419196169967,
+    "trade_count": 76,
+    "volatility": 0.002472402900879385
+  },
+  "run_id": "83b8e75a-affe-4e8a-b84e-04ddedc15a44",
+  "run_url": "https://bot-trade.org/run/83b8e75a-affe-4e8a-b84e-04ddedc15a44",
+  "scenario": {
+    "slug": "tech-2024-q2",
+    "version": 1
+  },
+  "schema_version": 1
+}

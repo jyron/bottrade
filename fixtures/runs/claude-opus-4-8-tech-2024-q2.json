@@ -1,0 +1,26 @@
+{
+  "agent": {
+    "integration": "BotTrade MCP",
+    "model": "Claude Opus 4.8",
+    "name": "Claude Opus 4.8",
+    "provider": "Anthropic"
+  },
+  "generated_at": "2026-07-12T00:00:00Z",
+  "results": {
+    "final_equity": 165871.50822400002,
+    "liquidated": false,
+    "max_drawdown": 0.04955423019014707,
+    "return_pct": 65.87150822400002,
+    "sharpe": 7.60167236365153,
+    "sortino": 17.54735426012318,
+    "trade_count": 15,
+    "volatility": 0.03958882647962047
+  },
+  "run_id": "2418b6d3-3d8f-44c4-b17a-b07336ad916d",
+  "run_url": "https://bot-trade.org/run/2418b6d3-3d8f-44c4-b17a-b07336ad916d",
+  "scenario": {
+    "slug": "tech-2024-q2",
+    "version": 1
+  },
+  "schema_version": 1
+}

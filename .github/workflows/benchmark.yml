@@ -1,0 +1,35 @@
+name: Private benchmark example
+
+on:
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: Ready BotTrade scenario slug
+        required: true
+        default: sandbox-nov-2024
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: python -m pip install -e .
+      - name: Run private benchmark
+        env:
+          BOTTRADE_API_KEY: ${{ secrets.BOTTRADE_API_KEY }}
+        run: >-
+          python examples/plain-python/run_strategy.py
+          --scenario "${{ inputs.scenario }}"
+          --output artifacts/result.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bottrade-result-${{ inputs.scenario }}
+          path: artifacts/result.json
+          if-no-files-found: error

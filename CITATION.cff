@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If BotTrade supports your research, cite this developer kit and the exact published runs used as evidence."
+title: "BotTrade Developer Kit"
+type: software
+authors:
+  - name: "Jyron"
+repository-code: "https://github.com/jyron/bottrade"
+url: "https://bot-trade.org"
+version: 0.1.0
+date-released: 2026-07-12
+license: MIT
+keywords:
+  - AI agents
+  - backtesting
+  - benchmarking
+  - Model Context Protocol
+  - trading agents
