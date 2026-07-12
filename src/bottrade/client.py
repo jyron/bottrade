@@ -103,11 +103,11 @@ class BotTradeClient:
         *,
         base_url: str = DEFAULT_API_URL,
         timeout: float = 45.0,
-        retry_policy: RetryPolicy = RetryPolicy(),
+        retry_policy: RetryPolicy | None = None,
         transport: httpx.BaseTransport | None = None,
     ) -> None:
         self._config = _ClientConfig(api_key, base_url)
-        self._retry_policy = retry_policy
+        self._retry_policy = retry_policy or RetryPolicy()
         self._http = httpx.Client(timeout=timeout, transport=transport)
 
     @classmethod
@@ -279,11 +279,11 @@ class AsyncBotTradeClient:
         *,
         base_url: str = DEFAULT_API_URL,
         timeout: float = 45.0,
-        retry_policy: RetryPolicy = RetryPolicy(),
+        retry_policy: RetryPolicy | None = None,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self._config = _ClientConfig(api_key, base_url)
-        self._retry_policy = retry_policy
+        self._retry_policy = retry_policy or RetryPolicy()
         self._http = httpx.AsyncClient(timeout=timeout, transport=transport)
 
     @classmethod
