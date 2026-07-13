@@ -39,7 +39,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
 
-from bottrade import APIError
+from bottrade import AgentInfo, APIError
 from bottrade import BotTradeClient as SDKClient
 
 API_BASE = os.environ.get("BOTTRADE_API", "https://bot-trade.org")
@@ -49,8 +49,14 @@ MIN_TECHNICAL_HISTORY = 130
 class BotTradeClient:
     """Compatibility wrapper over the maintained, typed BotTrade SDK."""
 
-    def __init__(self, api_key: str, base: str = API_BASE):
+    def __init__(
+        self,
+        api_key: str,
+        base: str = API_BASE,
+        agent_info: AgentInfo | None = None,
+    ):
         self.sdk = SDKClient(api_key, base_url=base)
+        self.agent_info = agent_info
 
     def __enter__(self) -> BotTradeClient:
         return self
@@ -62,7 +68,9 @@ class BotTradeClient:
         return self.sdk.get_scenario(slug).model_dump(mode="json")
 
     def start_run(self, slug: str, bot_name: str) -> dict[str, Any]:
-        return self.sdk.start_run(slug, bot_name=bot_name).model_dump(mode="json")
+        return self.sdk.start_run(
+            slug, bot_name=bot_name, agent_info=self.agent_info
+        ).model_dump(mode="json")
 
     def snapshot(self, run_id: str) -> dict[str, Any]:
         return self.sdk.get_run(run_id).model_dump(mode="json")
@@ -624,6 +632,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--provider", default="OpenAI", help="ai-hedge-fund model provider in as-of mode."
     )
     parser.add_argument(
+        "--upstream-version",
+        default="2026.7.10",
+        help="ai-hedge-fund version recorded with the run.",
+    )
+    parser.add_argument(
+        "--source-revision",
+        default="09dd33167bd6b4ea63ae32e7246e70e80632cc81",
+        help="ai-hedge-fund commit recorded with the run.",
+    )
+    parser.add_argument(
         "--analysts", default="", help="Comma-separated ai-hedge-fund analyst keys in as-of mode."
     )
     parser.add_argument(
@@ -687,7 +705,21 @@ def main(argv: list[str] | None = None) -> int:
             )
         else:
             technical = TechnicalStrategy()
-        with BotTradeClient(args.bot_api_key, args.api_base) as client:
+        info = AgentInfo(
+            name=args.bot_name,
+            framework="ai-hedge-fund",
+            model=args.model if args.mode == "as-of" else None,
+            version=args.upstream_version,
+            source_url="https://github.com/virattt/ai-hedge-fund",
+            source_revision=args.source_revision,
+            config={
+                "mode": args.mode,
+                "decide_every": args.decide_every,
+                "lookback": args.lookback,
+                "analysts": [item.strip() for item in args.analysts.split(",") if item.strip()],
+            },
+        )
+        with BotTradeClient(args.bot_api_key, args.api_base, info) as client:
             execute_benchmark(
                 client,
                 config,

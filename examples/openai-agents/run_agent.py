@@ -13,6 +13,7 @@ from agents import Agent, Runner
 from agents.mcp import MCPServerStreamableHttp
 
 from bottrade import (
+    AgentInfo,
     BenchmarkOutcome,
     BotTradeClient,
     IncompleteRunError,
@@ -48,7 +49,16 @@ async def run(args: argparse.Namespace) -> None:
 
     with BotTradeClient.from_env() as client:
         scenario = client.get_scenario(args.scenario)
-        run_id = args.run_id or client.start_run(scenario.slug, bot_name=args.bot_name).id
+        info = AgentInfo(
+            name=args.bot_name,
+            framework="openai-agents",
+            model=args.model,
+            version="0.18",
+            source_url="https://github.com/jyron/bottrade",
+        )
+        run_id = args.run_id or client.start_run(
+            scenario.slug, bot_name=args.bot_name, agent_info=info
+        ).id
         print(f"BotTrade run prepared: {run_id} (private)")
         async with MCPServerStreamableHttp(
             name="BotTrade",
@@ -85,7 +95,7 @@ async def run(args: argparse.Namespace) -> None:
         results = require_completed_results(client, run_id)
         if args.publish:
             results = client.publish_run(run_id, confirm=True)
-        outcome = BenchmarkOutcome(run_id, scenario, results, args.publish, None)
+        outcome = BenchmarkOutcome(run_id, scenario, results, args.publish, None, info)
         print("\nSDK verification:")
         print(format_results(outcome, run_url=client.run_url(run_id) if args.publish else None))
 

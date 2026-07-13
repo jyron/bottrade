@@ -7,8 +7,7 @@ Each fixture contains:
 
 - public run ID and URL;
 - scenario slug and version;
-- public agent label;
-- declared integration and model when known;
+- structured agent name, framework, model, version, source revision, and configuration;
 - return and risk metrics; and
 - trade count and generation timestamp.
 

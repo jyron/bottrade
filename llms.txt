@@ -1,31 +1,65 @@
-# BotTrade developer kit
+# BotTrade Python SDK
 
-BotTrade is a historical-market benchmark for evaluating AI trading agents through MCP
-or REST. It does not execute live trades or provide investment advice.
+BotTrade backtests custom Python trading agents on versioned historical-market scenarios.
 
-Canonical links:
-- Product: https://bot-trade.org
+## Install
+
+pip install bottrade
+
+Set BOTTRADE_API_KEY.
+
+## Minimal agent
+
+```python
+import bottrade
+
+def decide(observation):
+    symbol = observation.scenario.benchmark_symbol
+    if observation.position(symbol):
+        return bottrade.hold()
+    return bottrade.buy(symbol, quantity=10)
+
+result = bottrade.backtest(decide, scenario="sandbox-nov-2024")
+print(result.return_pct)
+```
+
+## Agent input
+
+- observation.scenario
+- observation.sim_time
+- observation.cash
+- observation.positions
+- observation.bars
+- observation.step_number
+- observation.position(symbol)
+
+## Agent output
+
+- bottrade.buy(symbol, quantity, reasoning=None)
+- bottrade.sell(symbol, quantity, reasoning=None)
+- bottrade.short(symbol, quantity, reasoning=None)
+- bottrade.cover(symbol, quantity, reasoning=None)
+- bottrade.hold(reasoning=None)
+- A list of Order objects for multiple orders
+
+## Runner
+
+bottrade.backtest(agent, scenario, agent_info=None, lookback=50,
+                   decide_every=1, max_steps=10000, publish=False,
+                   resume_run_id=None)
+
+Use bottrade.backtest_async for async agents.
+
+## Provenance
+
+Attach bottrade.AgentInfo with name, framework, model, version, source_url,
+source_revision, and config.
+
+## Links
+
 - Repository: https://github.com/jyron/bottrade
-- MCP server: https://mcp.bot-trade.org/mcp
-- MCP Registry: https://registry.modelcontextprotocol.io/?q=org.bot-trade%2Fbottrade
-- API docs: https://bot-trade.org/api/docs
-- Agent guide: https://bot-trade.org/api/agent-skills.md
-- Methodology: https://bot-trade.org/methodology
+- Product: https://bot-trade.org
 - Scenarios: https://bot-trade.org/scenarios
+- API docs: https://bot-trade.org/docs
+- MCP: https://mcp.bot-trade.org/mcp
 - Leaderboard: https://bot-trade.org/leaderboard
-
-Repository entry points:
-- `import bottrade; bottrade.run(...)`: complete private-by-default reference run
-- `bottrade.BotTradeClient`: low-level typed custom-strategy interface
-- `python -m bottrade`: module form of the installed CLI
-- README.md: installation, integrations, evidence, and architecture
-- src/bottrade: typed synchronous and asynchronous Python SDK
-- examples/openai-agents: OpenAI Agents SDK over Streamable HTTP MCP
-- examples/langchain-langgraph: LangChain/LangGraph over MCP
-- examples/multi-provider: OpenAI, Gemini, and Grok REST runner
-- examples/ai-hedge-fund: virattt/ai-hedge-fund adapter
-- docs/BADGES.md: verified public-run badges
-- fixtures/runs: normalized public benchmark evidence
-
-Publication is always opt-in. Examples remain private unless the caller explicitly passes
---publish or confirm=True.

@@ -10,17 +10,18 @@ def test_cli_requires_a_subcommand() -> None:
     assert args.run_id == "run-123"
 
 
-def test_complete_run_command_exposes_human_usable_flags() -> None:
+def test_backtest_command_exposes_custom_agent_flags() -> None:
     args = build_parser().parse_args(
         [
-            "run",
+            "backtest",
+            "my_agent:decide",
             "--scenario",
             "tech-2024-q2",
-            "--quantity",
-            "2.5",
-            "--max-bars",
+            "--lookback",
+            "24",
+            "--max-steps",
             "500",
-            "--bot-name",
+            "--name",
             "scholarly replication",
             "--output",
             "result.json",
@@ -28,10 +29,11 @@ def test_complete_run_command_exposes_human_usable_flags() -> None:
         ]
     )
 
-    assert args.command == "run"
+    assert args.command == "backtest"
+    assert args.agent == "my_agent:decide"
     assert args.scenario == "tech-2024-q2"
-    assert args.quantity == 2.5
-    assert args.max_bars == 500
+    assert args.lookback == 24
+    assert args.max_steps == 500
     assert args.publish is True
 
 
