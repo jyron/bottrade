@@ -30,10 +30,12 @@ def normalize(args: argparse.Namespace) -> dict[str, Any]:
 
     if public.results is None:
         raise RuntimeError("published run has no computed results")
-    agent: dict[str, Any] = {
-        "name": public.run.bot_name or "unnamed agent",
-        "integration": args.integration,
-    }
+    agent: dict[str, Any] = (
+        public.run.agent_info.model_dump(mode="json", exclude_none=True)
+        if public.run.agent_info
+        else {"name": public.run.bot_name or "unnamed agent"}
+    )
+    agent.setdefault("framework", args.integration)
     if args.provider:
         agent["provider"] = args.provider
     if args.model:
@@ -41,7 +43,7 @@ def normalize(args: argparse.Namespace) -> dict[str, Any]:
 
     version = args.scenario_version or public.run.scenario_version
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "run_id": public.run.id,
         "run_url": f"https://bot-trade.org/run/{public.run.id}",
         "scenario": {"slug": args.scenario, "version": version},

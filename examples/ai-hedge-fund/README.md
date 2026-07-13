@@ -1,58 +1,73 @@
-# Evaluate `virattt/ai-hedge-fund` with BotTrade
+# AI Hedge Fund adapter
 
-The adapter runs inside an upstream [`virattt/ai-hedge-fund`](https://github.com/virattt/ai-hedge-fund)
-checkout. BotTrade owns scenario time, simulation, fills, portfolio state, and scoring. The adapter
-now delegates all BotTrade HTTP behavior to the maintained typed SDK.
+This adapter runs [`virattt/ai-hedge-fund`](https://github.com/virattt/ai-hedge-fund)
+against a BotTrade scenario and records its exact identity in `AgentInfo`.
 
-- `technical`: upstream technical functions receive only BotTrade-visible OHLCV bars.
-- `as-of`: upstream’s full workflow receives the active scenario date and locally configured model
-  and data providers. External inputs are caller-owned and therefore self-attested.
-
-## Reproducible setup
+## Setup
 
 ```bash
 git clone https://github.com/virattt/ai-hedge-fund.git
 cd ai-hedge-fund
-git checkout 09dd33167bd6b4ea63ae32e7246e70e80632cc81  # v2026.7.10 verified by CI
+git checkout 09dd33167bd6b4ea63ae32e7246e70e80632cc81
 poetry install
 poetry run pip install 'bottrade[ai-hedge-fund]'
 export BOTTRADE_API_KEY="bt_your_key_here"
+```
+
+Run technical mode using BotTrade-visible bars:
+
+```bash
 python /absolute/path/to/bottrade/examples/ai-hedge-fund/adapter.py \
   --mode technical \
   --scenario tech-2024-q2
 ```
 
-The CI compatibility target is upstream `v2026.7.10` at immutable commit
-`09dd33167bd6b4ea63ae32e7246e70e80632cc81`. Record `git rev-parse HEAD`, adapter version,
-scenario slug/version, flags, and run ID. The adapter
-targets upstream’s `src.main.run_hedge_fund` and `src.agents.technicals` interfaces, not the separate
-experimental `v2` `AlphaModel` surface.
+Run the upstream as-of workflow:
 
-| Flag | Default | Applies to | Meaning |
-|---|---|---|---|
-| `--bot-api-key KEY` | environment | both | Prefer `BOTTRADE_API_KEY`; legacy `BOT_API_KEY` also works |
-| `--api-base URL` | `https://bot-trade.org` | both | BotTrade API origin |
-| `--scenario SLUG` | `tech-2024-q2` | both | Scenario to run |
-| `--bot-name NAME` | `ai-hedge-fund <mode>` | both | Run label |
-| `--mode {as-of,technical}` | `as-of` | both | Strategy/input boundary |
-| `--decide-every N` | `24` | both | Recompute decisions every N bars |
-| `--max-bars N` | `100000` | both | Safety cap; incomplete runs fail visibly |
-| `--publish` | off | both | Publish only after completion |
-| `--run-id UUID` | none | both | Resume an existing active run |
-| `--history-days N` | `180` | as-of | External history interval passed upstream |
-| `--model ID` | `gpt-4.1` | as-of | Upstream model identifier |
-| `--provider NAME` | `OpenAI` | as-of | Upstream provider identifier |
-| `--analysts CSV` | empty | as-of | Comma-separated upstream analyst keys |
-| `--lookback N` | `180` | technical | BotTrade bars supplied; minimum 130 |
-| `--max-positions N` | `4` | technical | Maximum target positions |
-| `--gross-exposure X` | `0.80` | technical | Target gross notional divided by equity, in `(0,1]` |
-| `--min-confidence X` | `0.15` | technical | Entry threshold in `[0,1]` |
+```bash
+python /absolute/path/to/bottrade/examples/ai-hedge-fund/adapter.py \
+  --mode as-of \
+  --scenario tech-2024-q2 \
+  --provider OpenAI \
+  --model gpt-4.1 \
+  --analysts technical_analyst,news_sentiment_analyst
+```
 
-## Output and completion
+## Flags
 
-The adapter automatically steps through the complete run and fails nonzero if it reaches the safety
-cap. This output is from the published
-[technical-mode evidence run](https://bot-trade.org/run/83b8e75a-affe-4e8a-b84e-04ddedc15a44):
+| Flag | Default | Meaning |
+|---|---|---|
+| `--bot-api-key KEY` | environment | BotTrade API key |
+| `--api-base URL` | `https://bot-trade.org` | BotTrade API origin |
+| `--scenario SLUG` | `tech-2024-q2` | Scenario to backtest |
+| `--bot-name NAME` | `ai-hedge-fund <mode>` | Agent name stored with the run |
+| `--mode {as-of,technical}` | `as-of` | Adapter mode |
+| `--decide-every N` | `24` | Recompute decisions every N bars |
+| `--max-bars N` | `100000` | Maximum simulator steps |
+| `--publish` | off | Publish the completed run and trades |
+| `--run-id UUID` | none | Continue an active run |
+| `--history-days N` | `180` | As-of history interval |
+| `--model ID` | `gpt-4.1` | Upstream model identifier |
+| `--provider NAME` | `OpenAI` | Upstream model provider |
+| `--upstream-version VERSION` | `2026.7.10` | Upstream version recorded in `AgentInfo` |
+| `--source-revision REVISION` | pinned commit | Upstream revision recorded in `AgentInfo` |
+| `--analysts CSV` | empty | Upstream analyst keys |
+| `--lookback N` | `180` | BotTrade bars supplied to technical mode |
+| `--max-positions N` | `4` | Maximum target positions |
+| `--gross-exposure X` | `0.80` | Target gross exposure |
+| `--min-confidence X` | `0.15` | Technical entry threshold |
+
+## Recorded provenance
+
+```text
+name: ai-hedge-fund technical
+framework: ai-hedge-fund
+version: 2026.7.10
+source_revision: 09dd33167bd6b4ea63ae32e7246e70e80632cc81
+config: mode, analysts, decide_every, lookback
+```
+
+## Output
 
 ```text
 Scenario: tech-2024-q2 (Tech Megacaps — 2024 Q2)
@@ -69,12 +84,4 @@ Results
   liquidated:   False
 ```
 
-Use `--run-id` after an interruption. Do not change the upstream revision or experimental flags
-mid-run. Technical mode’s input boundary is reproducible from BotTrade bars; as-of mode additionally
-requires provider/model/data provenance and cannot be independently reconstructed by BotTrade alone.
-
-Verification: CI statically checks the named upstream runner parameters and technical functions at
-the pinned revision. It also exercises portfolio mapping, date boundaries, order clamping, all five technical
-function calls on synthetic pandas bars, target construction, resume behavior, completion, and
-explicit publication through a stateful fake client. It does not falsely claim that arbitrary future
-upstream revisions or private external-data subscriptions are continuously available.
+Public evidence: [AI Hedge Fund technical run](https://bot-trade.org/run/83b8e75a-affe-4e8a-b84e-04ddedc15a44).

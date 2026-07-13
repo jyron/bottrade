@@ -14,8 +14,8 @@ Authorization: Bearer <BOTTRADE_API_KEY>
 ```
 
 Start with `run_sandbox_smoke_test`, then use scenario discovery, `start_run`, market
-observation, `submit_decision`, and `get_results`. Do not call `publish_run` unless the
-user explicitly asks for public evidence.
+observation, `submit_decision`, and `get_results`. Keep runs private by default and call
+`publish_run` after an explicit request for public evidence.
 
 The live tool list is authoritative. See the complete agent guide at
 https://bot-trade.org/api/agent-skills.md.

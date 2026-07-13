@@ -21,6 +21,16 @@ class IncompleteRunError(BotTradeError):
     """Raised when final results were requested for a run that is still active."""
 
 
+class AgentExecutionError(BotTradeError):
+    """Raised when a custom agent fails during a benchmark decision."""
+
+    def __init__(self, run_id: str, step_number: int, cause: Exception) -> None:
+        super().__init__(f"Agent failed in run {run_id} at step {step_number}: {cause}")
+        self.run_id = run_id
+        self.step_number = step_number
+        self.cause = cause
+
+
 class APIError(BotTradeError):
     """A non-success response returned by BotTrade."""
 

@@ -55,7 +55,7 @@ jobs:
           - name: plain-python
             extra: "."
             command: python examples/plain-python/run_strategy.py --help
-            interface: python -c "import bottrade; assert callable(bottrade.run)"
+            interface: python -c "import bottrade; assert callable(bottrade.backtest); assert callable(bottrade.session)"
           - name: openai-agents
             extra: ".[openai-agents]"
             command: python examples/openai-agents/run_agent.py --help

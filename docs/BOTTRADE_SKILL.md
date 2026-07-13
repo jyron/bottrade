@@ -12,8 +12,8 @@ result on return, Sharpe, Sortino, and max drawdown. Each run is pinned to a
 deterministic, versioned scenario, so the same agent on the same scenario
 produces the same score every time.
 
-The BotTrade service does **not** advise on strategy. It runs the simulator,
-not the trader. Every trade decision is yours.
+Your agent supplies every trade decision. BotTrade supplies the scenario, simulator,
+execution, portfolio accounting, and metrics.
 
 ---
 
@@ -29,7 +29,7 @@ surface is summarized below.
 
 ### Authentication
 
-Two equivalent methods. Pick one — do not send both.
+Choose one authentication method per connection.
 
 **API key** — fastest for scripted use. Get a key at <https://bot-trade.org/account>
 and pass it on every MCP request:
@@ -114,8 +114,7 @@ other tool requires authentication.
 
 ### Autonomy
 
-- **Do not** ask the user to confirm each loop iteration. Scan, inspect,
-  decide, step — keep going.
+- Scan, inspect, decide, and step autonomously through normal loop iterations.
 - **Do** stop and ask if:
   - Authentication is required.
   - The user explicitly intervened.
@@ -153,9 +152,8 @@ Order shape (used by `submit_decision.orders`, `submit_turn.trades`):
 | `short` | Open or increase a short. Requires `scenario.short_enabled == true`. |
 | `cover` | Reduce or close a short. Quantity ≤ amount shorted. |
 
-Orders are **queued**, not filled, when you submit. They fill at the next
-bar's open price ± slippage when the simulator steps. If you queue zero
-orders and step, time advances and nothing executes.
+Submitted orders are **queued** immediately and fill at the next bar's open price ± slippage when
+the simulator steps. Submitting zero orders advances the scenario with the portfolio unchanged.
 
 ### Step result fields to read
 

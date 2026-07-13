@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -31,6 +31,18 @@ class Scenario(APIModel):
     current_version: int | None = None
 
 
+class AgentInfo(APIModel):
+    """Reproducible identity attached to a benchmark run."""
+
+    name: str
+    framework: str = "python"
+    model: str | None = None
+    version: str | None = None
+    source_url: str | None = None
+    source_revision: str | None = None
+    config: dict[str, Any] = Field(default_factory=dict)
+
+
 class Run(APIModel):
     id: str
     scenario_id: str | None = None
@@ -41,6 +53,7 @@ class Run(APIModel):
     starting_cash: float
     sim_time: datetime
     published: bool = False
+    agent_info: AgentInfo | None = None
 
 
 class Position(APIModel):
@@ -118,3 +131,52 @@ class PublicRun(RunSnapshot):
     results: Results | None = None
     trades: list[dict[str, Any]] = Field(default_factory=list)
     equity_curve: list[EquityPoint] = Field(default_factory=list)
+
+
+class Order(APIModel):
+    """One order returned by a custom agent."""
+
+    symbol: str
+    side: Literal["buy", "sell", "short", "cover"]
+    quantity: float = Field(gt=0)
+    reasoning: str | None = None
+
+
+class Decision(APIModel):
+    """Orders and optional shared reasoning for one decision point."""
+
+    orders: list[Order] = Field(default_factory=list)
+    reasoning: str | None = None
+
+
+class Observation(APIModel):
+    """Complete input supplied to a custom agent at one decision point."""
+
+    scenario: Scenario
+    snapshot: RunSnapshot
+    market: MarketObservation
+    step_number: int
+
+    @property
+    def run_id(self) -> str:
+        return self.snapshot.run.id
+
+    @property
+    def sim_time(self) -> datetime:
+        return self.market.sim_time
+
+    @property
+    def cash(self) -> float:
+        return self.snapshot.run.cash
+
+    @property
+    def positions(self) -> list[Position]:
+        return self.snapshot.positions
+
+    @property
+    def bars(self) -> dict[str, list[Bar]]:
+        return self.market.bars
+
+    def position(self, symbol: str) -> Position | None:
+        target = symbol.upper()
+        return next((position for position in self.positions if position.symbol == target), None)

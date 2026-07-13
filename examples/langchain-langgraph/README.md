@@ -1,10 +1,9 @@
-# LangChain/LangGraph + BotTrade MCP
+# LangChain/LangGraph with BotTrade MCP
 
-This example uses `MultiServerMCPClient` and `create_agent` exactly as documented by the current
-[LangChain MCP adapter](https://docs.langchain.com/oss/python/langchain/mcp). BotTrade remains the
-source of market, portfolio, and run state.
+This example loads BotTrade tools through `MultiServerMCPClient`, prepares one run, lets the
+LangGraph-backed agent trade it, and verifies the final results through the Python SDK.
 
-## Run it
+## Run
 
 ```bash
 python -m pip install 'bottrade[langchain]' langchain-openai
@@ -15,44 +14,36 @@ python examples/langchain-langgraph/run_agent.py \
   --scenario sandbox-nov-2024
 ```
 
+The MCP client follows the current
+[LangChain MCP adapter interface](https://docs.langchain.com/oss/python/langchain/mcp).
+
+## Flags
+
 | Flag | Default | Meaning |
 |---|---|---|
-| `--model PROVIDER:ID` | required | LangChain model string; install its provider integration |
-| `--scenario SLUG` | `sandbox-nov-2024` | Scenario for a newly created run |
-| `--bot-name NAME` | `LangChain MCP example` | Run label |
-| `--run-id UUID` | none | Resume one active run; no replacement is created |
-| `--recursion-limit N` | `300` | LangGraph recursion limit; must be positive |
-| `--publish` | off | SDK publishes only after terminal verification |
+| `--model PROVIDER:ID` | required | LangChain model string |
+| `--scenario SLUG` | `sandbox-nov-2024` | Scenario for a new run |
+| `--bot-name NAME` | `LangChain MCP example` | Agent name stored with the run |
+| `--run-id UUID` | none | Continue an active run |
+| `--recursion-limit N` | `300` | LangGraph recursion limit |
+| `--publish` | off | Publish the completed run and trades |
 
-`BOTTRADE_API_KEY` and the selected provider’s key are required.
-
-## Output and completion
-
-The model operates one pre-created run. The script then verifies it independently. A normal output
-has the same two-stage structure below; numbers are illustrative placeholders because this project
-does not claim a framework-specific public run yet:
+## Output
 
 ```text
 BotTrade run prepared: 00000000-0000-0000-0000-000000000000 (private)
 
-Agent report (untrusted until verification):
-The run reached completion and final results were retrieved.
+Agent report:
+The benchmark reached completion.
 
 SDK verification:
-BotTrade benchmark complete
+BotTrade backtest complete
   run_id:         00000000-0000-0000-0000-000000000000
+  agent:          LangChain MCP example
   scenario:       sandbox-nov-2024
   status:         private
-  bars_advanced:  n/a
-  final_equity:   $<reported by BotTrade>
-  return:         <reported by BotTrade>
-  trades:         <reported by BotTrade>
+  final_equity:   $101,250.00
+  return:         +1.25%
 ```
 
-If the graph hits its recursion limit or the run remains active, the script exits nonzero and names
-the run. Resume with `--run-id`. Do not hide loops by increasing the limit without inspecting tool
-calls.
-
-Verification: CI installs the declared LangChain dependencies, imports the example, checks its CLI,
-and tests the shared terminal-state gate offline. It does not claim a live LangChain result until a
-framework-attributed public run exists.
+The run records `framework=langchain-langgraph` and the selected model in `AgentInfo`.

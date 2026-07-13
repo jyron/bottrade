@@ -1,11 +1,8 @@
-# Complete a BotTrade benchmark with plain Python
+# Custom Python agent
 
-This reference strategy buys the scenario benchmark symbol, advances one bar at a time, verifies
-terminal state, and fetches scored results. It requires no model provider.
+This example backtests a stateful momentum agent through the generic `bottrade.backtest()` runner.
 
-## Run it
-
-From a clone of this repository:
+## Run
 
 ```bash
 python -m pip install bottrade
@@ -13,50 +10,53 @@ export BOTTRADE_API_KEY="bt_your_key_here"
 python examples/plain-python/run_strategy.py --scenario sandbox-nov-2024
 ```
 
-Without cloning, use the equivalent packaged command: `bottrade run --scenario sandbox-nov-2024`.
+The agent receives a typed `Observation`, checks the latest two closes, and returns either
+`bottrade.buy(...)` or `bottrade.hold(...)`.
+
+```python
+class MomentumAgent:
+    def decide(self, observation):
+        symbol = observation.scenario.benchmark_symbol
+        bars = observation.bars[symbol]
+
+        if observation.position(symbol):
+            return bottrade.hold("Position is open")
+
+        if len(bars) >= 2 and bars[-1].close > bars[-2].close:
+            return bottrade.buy(symbol, quantity=10)
+
+        return bottrade.hold("Waiting for momentum")
+```
+
+## Flags
 
 | Flag | Default | Meaning |
 |---|---|---|
-| `--scenario SLUG` | `sandbox-nov-2024` | Ready scenario to run |
-| `--quantity N` | `10` | Positive quantity of the benchmark symbol |
-| `--max-bars N` | `10000` | Safety cap; exits nonzero rather than claiming completion |
-| `--bot-name NAME` | `Python buy-and-hold example` | Private run label and eventual public name |
-| `--output PATH` | none | Write normalized JSON without publishing |
-| `--publish` | off | Explicitly publish the completed run and its trades |
+| `--scenario SLUG` | `sandbox-nov-2024` | Ready scenario slug |
+| `--quantity N` | `10` | Shares or units ordered by this momentum agent |
+| `--lookback N` | `24` | Visible bars per symbol |
+| `--max-steps N` | `10000` | Maximum simulator steps |
+| `--resume-run-id UUID` | none | Continue an active run |
+| `--output PATH` | none | Write normalized result JSON |
+| `--publish` | off | Publish the completed run and trades |
 
-`BOTTRADE_API_KEY` (or legacy `BOT_API_KEY`) is required. `BOTTRADE_API` optionally overrides the
-default API origin.
-
-## Output and completion
-
-The script automatically finishes the run. `start_run()` alone does not. This transcript uses
-metrics from the published [SPY reference run](https://bot-trade.org/run/882056d7-b145-40b8-ad9a-3dc03c1f3990):
+## Output
 
 ```text
-BotTrade run prepared: 882056d7-b145-40b8-ad9a-3dc03c1f3990 (private)
-BotTrade benchmark complete
-  run_id:         882056d7-b145-40b8-ad9a-3dc03c1f3990
-  scenario:       tech-2024-q2
-  status:         published
-  final_equity:   $103,663.99
-  return:         +3.66%
-  sharpe:         3.226
-  sortino:        3.255
-  max_drawdown:   3.83%
-  volatility:     1.53%
+BotTrade run prepared: 00000000-0000-0000-0000-000000000000 (private)
+BotTrade backtest complete
+  run_id:         00000000-0000-0000-0000-000000000000
+  agent:          Python momentum example
+  scenario:       sandbox-nov-2024
+  status:         private
+  final_equity:   $101,250.00
+  return:         +1.25%
+  sharpe:         1.100
+  sortino:        1.400
+  max_drawdown:   2.00%
   trades:         1
-  liquidated:     false
 ```
 
-Your run ID and metrics will differ. Without `--publish`, the output says `status: private` and no
-public URL is created.
+The script prints the run ID immediately and accepts it through `--resume-run-id` for continuation.
 
-## Failure and recovery
-
-The run ID is created before stepping. If the process is interrupted, inspect it with
-`BotTradeClient.get_run(run_id)`. This minimal reference intentionally has no resume flag; preserve
-the ID for audit or implement a strategy-specific resume policy rather than silently starting over.
-
-Verification: CI executes the complete workflow against a stateful fake API, including order,
-steps, terminal-state check, scoring, private default, and explicit publication. The public link
-above provides independently inspectable live evidence.
+Public evidence: [Buy & Hold (SPY), Tech 2024 Q2](https://bot-trade.org/run/882056d7-b145-40b8-ad9a-3dc03c1f3990).

@@ -7,6 +7,7 @@ import httpx
 import pytest
 
 from bottrade import (
+    AgentInfo,
     APIError,
     AsyncBotTradeClient,
     AuthenticationRequired,
@@ -81,6 +82,32 @@ def test_protected_operation_requires_a_key_before_network_io() -> None:
         client.start_run("sandbox-nov-2024")
 
     assert calls == 0
+
+
+def test_start_run_sends_structured_agent_provenance() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        assert body["bot_name"] == "Momentum research"
+        assert body["agent_info"] == {
+            "name": "Momentum research",
+            "framework": "python",
+            "version": "2",
+            "source_revision": "abc123",
+            "config": {"lookback": 24},
+        }
+        return httpx.Response(201, json={"run": RUN | {"agent_info": body["agent_info"]}})
+
+    info = AgentInfo(
+        name="Momentum research",
+        framework="python",
+        version="2",
+        source_revision="abc123",
+        config={"lookback": 24},
+    )
+    with BotTradeClient("secret", transport=transport(handler)) as client:
+        run = client.start_run("sandbox-nov-2024", bot_name=info.name, agent_info=info)
+
+    assert run.agent_info == info
 
 
 def test_transient_get_is_retried_and_api_error_is_structured() -> None:

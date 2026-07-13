@@ -12,7 +12,16 @@ from typing import Any
 
 import httpx
 
-from bottrade import BenchmarkOutcome, BotTradeClient, RunSnapshot, Scenario, format_results
+from bottrade import (
+    AgentInfo,
+    Decision,
+    Observation,
+    Order,
+    RunSnapshot,
+    Scenario,
+    backtest,
+    format_results,
+)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -126,74 +135,77 @@ def decide(provider: str, model: str, key: str, content: str) -> dict[str, Any]:
     return extract_json("".join(part.get("text", "") for part in parts))
 
 
+class ProviderAgent:
+    def __init__(self, provider: str, model: str, key: str) -> None:
+        self.provider = provider
+        self.model = model
+        self.key = key
+
+    def decide(self, observation: Observation) -> Decision:
+        payload = decide(
+            self.provider,
+            self.model,
+            self.key,
+            prompt(
+                observation.scenario,
+                observation.snapshot,
+                {
+                    symbol: [bar.model_dump(mode="json") for bar in values]
+                    for symbol, values in observation.bars.items()
+                },
+            ),
+        )
+        rationale = str(payload.get("rationale", ""))[:500]
+        orders: list[Order] = []
+        for trade in payload.get("trades") or []:
+            try:
+                orders.append(
+                    Order(
+                        symbol=str(trade["symbol"]).upper(),
+                        side=str(trade["side"]).lower(),
+                        quantity=float(trade["quantity"]),
+                        reasoning=rationale,
+                    )
+                )
+            except (KeyError, TypeError, ValueError) as error:
+                print(f"skipped malformed trade {trade!r}: {error}")
+        return Decision(orders=orders, reasoning=rationale)
+
+
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     key = provider_key(args.provider)
-    with BotTradeClient.from_env() as client:
-        scenario = client.get_scenario(args.scenario)
-        run_id = args.run_id
-        if run_id is None:
-            run_id = client.start_run(
-                scenario.slug, bot_name=args.bot_name or f"{args.provider} {args.model} example"
-            ).id
-        print(f"BotTrade run prepared: {run_id} (private)")
-
-        for bar_number in range(args.max_bars):
-            if bar_number % args.decide_every == 0:
-                snapshot = client.get_run(run_id)
-                market = client.get_market(run_id, lookback=args.lookback)
-                decision = decide(
-                    args.provider,
-                    args.model,
-                    key,
-                    prompt(
-                        scenario,
-                        snapshot,
-                        {
-                            symbol: [bar.model_dump(mode="json") for bar in values]
-                            for symbol, values in market.bars.items()
-                        },
-                    ),
-                )
-                rationale = str(decision.get("rationale", ""))[:500]
-                for trade in decision.get("trades") or []:
-                    try:
-                        client.queue_trade(
-                            run_id,
-                            symbol=str(trade["symbol"]),
-                            side=str(trade["side"]),
-                            quantity=float(trade["quantity"]),
-                            reasoning=rationale,
-                        )
-                    except (KeyError, TypeError, ValueError) as error:
-                        print(f"skipped malformed trade {trade!r}: {error}")
-
-            step = client.step(run_id)
-            if step.done or step.liquidated:
-                break
-        else:
-            raise RuntimeError(
-                f"run {run_id} did not finish before --max-bars={args.max_bars}; "
-                f"resume with --run-id {run_id}"
-            )
-
-        results = client.get_results(run_id)
-        if args.publish:
-            results = client.publish_run(run_id, confirm=True)
-        outcome = BenchmarkOutcome(run_id, scenario, results, args.publish, bar_number + 1)
-        print(format_results(outcome, run_url=client.run_url(run_id) if args.publish else None))
-        if args.output:
-            artifact = {
-                "run_id": run_id,
-                "scenario": scenario.slug,
-                "provider": args.provider,
-                "model": args.model,
-                "published": args.publish,
-                "bars_advanced": bar_number + 1,
-                "results": results.model_dump(mode="json"),
-            }
-            args.output.parent.mkdir(parents=True, exist_ok=True)
-            args.output.write_text(json.dumps(artifact, indent=2, sort_keys=True) + "\n")
+    name = args.bot_name or f"{args.provider} {args.model} example"
+    info = AgentInfo(
+        name=name,
+        framework=f"{args.provider}-api",
+        model=args.model,
+        source_url="https://github.com/jyron/bottrade",
+        config={"decide_every": args.decide_every, "lookback": args.lookback},
+    )
+    result = backtest(
+        ProviderAgent(args.provider, args.model, key),
+        args.scenario,
+        agent_info=info,
+        decide_every=args.decide_every,
+        lookback=args.lookback,
+        max_steps=args.max_bars,
+        resume_run_id=args.run_id,
+        publish=args.publish,
+        on_started=lambda run: print(f"BotTrade run prepared: {run.id} (private)"),
+    )
+    print(format_results(result))
+    if args.output:
+        artifact = {
+            "run_id": result.run_id,
+            "scenario": result.scenario.slug,
+            "agent_info": result.agent_info.model_dump(mode="json") if result.agent_info else None,
+            "published": result.published,
+            "bars_advanced": result.bars_advanced,
+            "results": result.results.model_dump(mode="json"),
+        }
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(json.dumps(artifact, indent=2, sort_keys=True) + "\n")
     return 0
 
 

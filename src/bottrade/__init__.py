@@ -1,5 +1,14 @@
 """BotTrade Python SDK."""
 
+from .agents import (
+    AsyncDecidingAgent,
+    DecidingAgent,
+    buy,
+    cover,
+    hold,
+    sell,
+    short,
+)
 from .client import (
     DEFAULT_API_URL,
     DEFAULT_MCP_URL,
@@ -8,6 +17,7 @@ from .client import (
     RetryPolicy,
 )
 from .errors import (
+    AgentExecutionError,
     APIError,
     AuthenticationRequired,
     BotTradeError,
@@ -15,9 +25,13 @@ from .errors import (
     PublicationConfirmationRequired,
 )
 from .models import (
+    AgentInfo,
     Bar,
+    Decision,
     Fill,
     MarketObservation,
+    Observation,
+    Order,
     Position,
     PublicRun,
     QueuedOrder,
@@ -27,8 +41,12 @@ from .models import (
     Scenario,
     StepResult,
 )
+from .session import BacktestSession, session
 from .workflows import (
+    BacktestResult,
     BenchmarkOutcome,
+    backtest,
+    backtest_async,
     format_results,
     require_completed_results,
     run,
@@ -39,15 +57,24 @@ __all__ = [
     "DEFAULT_API_URL",
     "DEFAULT_MCP_URL",
     "APIError",
+    "AgentExecutionError",
+    "AgentInfo",
     "AsyncBotTradeClient",
+    "AsyncDecidingAgent",
     "AuthenticationRequired",
+    "BacktestResult",
+    "BacktestSession",
     "Bar",
     "BenchmarkOutcome",
     "BotTradeClient",
     "BotTradeError",
+    "DecidingAgent",
+    "Decision",
     "Fill",
     "IncompleteRunError",
     "MarketObservation",
+    "Observation",
+    "Order",
     "Position",
     "PublicRun",
     "PublicationConfirmationRequired",
@@ -58,10 +85,18 @@ __all__ = [
     "RunSnapshot",
     "Scenario",
     "StepResult",
+    "backtest",
+    "backtest_async",
+    "buy",
+    "cover",
     "format_results",
+    "hold",
     "require_completed_results",
     "run",
     "run_buy_and_hold",
+    "sell",
+    "session",
+    "short",
 ]
 
-__version__ = "0.1.2"
+__version__ = "0.2.0"
