@@ -11,13 +11,21 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
+      - name: Verify release tag matches package version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: >-
+          python -c "import os,tomllib,pathlib;
+          version=tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'];
+          assert os.environ['RELEASE_TAG'] == 'v' + version,
+          f\"tag {os.environ['RELEASE_TAG']} does not match package {version}\""
       - run: python -m pip install --upgrade build
       - run: python -m build
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: python-package-distributions
           path: dist/
@@ -31,11 +39,10 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: python-package-distributions
           path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           attestations: true
-
