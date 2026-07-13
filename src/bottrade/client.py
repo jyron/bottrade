@@ -79,7 +79,7 @@ class _ClientConfig:
         self.base_url = base_url.rstrip("/")
 
     def headers(self, protected: bool) -> dict[str, str]:
-        headers = {"Accept": "application/json", "User-Agent": "bottrade-python/0.1.1"}
+        headers = {"Accept": "application/json", "User-Agent": "bottrade-python/0.1.2"}
         if protected:
             if self.api_key is None:
                 raise AuthenticationRequired(

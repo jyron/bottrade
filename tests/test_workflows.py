@@ -5,7 +5,17 @@ import json
 import httpx
 import pytest
 
-from bottrade import BotTradeClient, IncompleteRunError, format_results, run_buy_and_hold
+import bottrade
+import bottrade.workflows as workflows
+from bottrade import (
+    BenchmarkOutcome,
+    BotTradeClient,
+    IncompleteRunError,
+    Results,
+    Scenario,
+    format_results,
+    run_buy_and_hold,
+)
 
 SCENARIO = {
     "slug": "sandbox-nov-2024",
@@ -37,6 +47,47 @@ RESULTS = {
     "trade_count": 1,
     "liquidated": False,
 }
+
+
+def test_top_level_run_is_a_one_call_library_api(monkeypatch: pytest.MonkeyPatch) -> None:
+    class OwnedClient:
+        def __enter__(self) -> OwnedClient:
+            return self
+
+        def __exit__(self, *_: object) -> None:
+            return None
+
+    client = OwnedClient()
+    expected = BenchmarkOutcome(
+        "run-1",
+        Scenario.model_validate(SCENARIO),
+        Results.model_validate(RESULTS),
+        False,
+        2,
+    )
+    call: dict[str, object] = {}
+
+    def fake_workflow(received_client: object, **kwargs: object) -> BenchmarkOutcome:
+        call["client"] = received_client
+        call.update(kwargs)
+        return expected
+
+    monkeypatch.setattr(
+        workflows.BotTradeClient,
+        "from_env",
+        classmethod(lambda _cls, **_kwargs: client),
+    )
+    monkeypatch.setattr(workflows, "run_buy_and_hold", fake_workflow)
+
+    result = bottrade.run("tech-2024-q2", quantity=3, publish=False)
+
+    assert result is expected
+    assert result.return_pct == 1.25
+    assert result.final_equity == 101250
+    assert call["client"] is client
+    assert call["scenario_slug"] == "tech-2024-q2"
+    assert call["quantity"] == 3
+    assert call["publish"] is False
 
 
 def test_buy_and_hold_executes_the_complete_private_lifecycle() -> None:

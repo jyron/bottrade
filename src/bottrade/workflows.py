@@ -22,6 +22,30 @@ class BenchmarkOutcome:
     published: bool
     bars_advanced: int | None
 
+    @property
+    def return_pct(self) -> float:
+        """Final percentage return."""
+
+        return self.results.return_pct
+
+    @property
+    def final_equity(self) -> float:
+        """Final marked portfolio equity."""
+
+        return self.results.final_equity
+
+    @property
+    def sharpe(self) -> float | None:
+        """Final Sharpe ratio, when defined."""
+
+        return self.results.sharpe
+
+    @property
+    def max_drawdown(self) -> float | None:
+        """Maximum drawdown as a decimal fraction, when defined."""
+
+        return self.results.max_drawdown
+
 
 def require_completed_results(client: BotTradeClient, run_id: str) -> Results:
     """Return final metrics only after independently verifying terminal state."""
@@ -81,6 +105,42 @@ def run_buy_and_hold(
     if publish:
         results = client.publish_run(run.id, confirm=True)
     return BenchmarkOutcome(run.id, scenario, results, publish, bars_advanced)
+
+
+def run(
+    scenario: str = "sandbox-nov-2024",
+    *,
+    quantity: float = 10,
+    max_bars: int = 10_000,
+    bot_name: str = "BotTrade Python buy-and-hold",
+    publish: bool = False,
+    api_key: str | None = None,
+    timeout: float = 45.0,
+    on_started: Callable[[Run], None] | None = None,
+) -> BenchmarkOutcome:
+    """Run the complete reference strategy as a one-call library API.
+
+    Credentials come from ``api_key`` when supplied, otherwise from
+    ``BOTTRADE_API_KEY`` (or the legacy ``BOT_API_KEY``) through
+    :meth:`BotTradeClient.from_env`. Results remain private unless
+    ``publish=True`` is explicitly passed.
+    """
+
+    client = (
+        BotTradeClient(api_key, timeout=timeout)
+        if api_key is not None
+        else BotTradeClient.from_env(timeout=timeout)
+    )
+    with client:
+        return run_buy_and_hold(
+            client,
+            scenario_slug=scenario,
+            quantity=quantity,
+            max_bars=max_bars,
+            bot_name=bot_name,
+            publish=publish,
+            on_started=on_started,
+        )
 
 
 def format_results(outcome: BenchmarkOutcome, *, run_url: str | None = None) -> str:

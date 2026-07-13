@@ -15,6 +15,9 @@ Canonical links:
 - Leaderboard: https://bot-trade.org/leaderboard
 
 Repository entry points:
+- `import bottrade; bottrade.run(...)`: complete private-by-default reference run
+- `bottrade.BotTradeClient`: low-level typed custom-strategy interface
+- `python -m bottrade`: module form of the installed CLI
 - README.md: installation, integrations, evidence, and architecture
 - src/bottrade: typed synchronous and asynchronous Python SDK
 - examples/openai-agents: OpenAI Agents SDK over Streamable HTTP MCP
