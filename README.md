@@ -49,19 +49,66 @@ to independently verify that exact run is terminal. Agent prose is never treated
 If a process is interrupted, preserve the printed run ID. Examples supporting `--run-id` resume
 that run; do not create a replacement when experimental continuity matters.
 
-## 30-second Python start
+## Import and run it as a Python package
 
-This path works after installing the package; cloning this repository is not required.
+This is the primary interface. It works after installation; cloning the repository is not required.
 
 ```bash
-python -m pip install 'bottrade==0.1.1'
+python -m pip install 'bottrade==0.1.2'
 export BOTTRADE_API_KEY="bt_your_key_here"
-bottrade scenarios
-bottrade run --scenario sandbox-nov-2024
 ```
 
-`bottrade run` is private by default. Add `--publish` only when the completed result and trades
-should become public. Get a key at [bot-trade.org/account](https://bot-trade.org/account).
+```python
+import bottrade
+
+result = bottrade.run("sandbox-nov-2024", quantity=10)
+
+print(result.run_id)
+print(result.return_pct)
+print(result.sharpe)
+print(result.max_drawdown)
+```
+
+`bottrade.run()` creates, advances, finishes, verifies, and scores the included reference strategy.
+It returns a typed `BenchmarkOutcome`; it does not print or terminate the interpreter. Results are
+private by default. Pass `publish=True` only when the completed run and its trades should be public.
+Get a key at [bot-trade.org/account](https://bot-trade.org/account).
+
+Pass a key directly when environment variables are undesirable:
+
+```python
+result = bottrade.run(
+    "tech-2024-q2",
+    api_key="bt_your_key_here",
+    bot_name="replication-2026-07",
+    publish=False,
+)
+```
+
+For a custom strategy, use the regular typed client:
+
+```python
+import bottrade
+
+with bottrade.BotTradeClient.from_env() as client:
+    scenario = client.get_scenario("sandbox-nov-2024")
+    run = client.start_run(scenario.slug, bot_name="my strategy")
+    market = client.get_market(run.id, lookback=24)
+    # Decide, queue trades, and call client.step(run.id) until terminal.
+```
+
+`start_run()` is intentionally low-level: it creates the private active run but does not advance or
+finish it.
+
+## Command-line interface
+
+The same installed distribution also supports both executable forms:
+
+```bash
+bottrade scenarios
+bottrade run --scenario sandbox-nov-2024
+python -m bottrade run --scenario sandbox-nov-2024
+```
 
 Representative terminal output (field values come from the linked published
 [buy-and-hold run](https://bot-trade.org/run/882056d7-b145-40b8-ad9a-3dc03c1f3990)):
@@ -81,23 +128,6 @@ BotTrade benchmark complete
   trades:         1
   liquidated:     false
 ```
-
-For programmatic use:
-
-```python
-from bottrade import BotTradeClient, format_results, run_buy_and_hold
-
-with BotTradeClient.from_env() as client:
-    outcome = run_buy_and_hold(
-        client,
-        scenario_slug="sandbox-nov-2024",
-        quantity=10,
-        publish=False,
-    )
-    print(format_results(outcome))
-```
-
-For low-level strategies, call `start_run`, `get_market`, `queue_trade`, and `step` directly.
 
 ## 30-second MCP start
 

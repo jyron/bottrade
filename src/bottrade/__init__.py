@@ -27,7 +27,13 @@ from .models import (
     Scenario,
     StepResult,
 )
-from .workflows import BenchmarkOutcome, format_results, require_completed_results, run_buy_and_hold
+from .workflows import (
+    BenchmarkOutcome,
+    format_results,
+    require_completed_results,
+    run,
+    run_buy_and_hold,
+)
 
 __all__ = [
     "DEFAULT_API_URL",
@@ -54,7 +60,8 @@ __all__ = [
     "StepResult",
     "format_results",
     "require_completed_results",
+    "run",
     "run_buy_and_hold",
 ]
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
