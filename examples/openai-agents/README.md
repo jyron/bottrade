@@ -1,38 +1,64 @@
-# Backtest an OpenAI Agents SDK trading agent through MCP
+# OpenAI Agents SDK + BotTrade Streamable HTTP MCP
 
-This example connects the OpenAI Agents SDK directly to BotTrade's remote Streamable HTTP
-MCP server. BotTrade tools handle scenario discovery, market observation, run state,
-orders, stepping, scoring, and optional publication.
+The script follows the official OpenAI Agents SDK
+[MCP interface](https://openai.github.io/openai-agents-python/mcp/). It creates exactly one private
+run through the SDK, lets the agent operate that run through MCP, then independently verifies the
+same run through the SDK. The agent is forbidden from starting or publishing runs.
 
-The implementation follows the current OpenAI Agents SDK
-[Streamable HTTP MCP interface](https://openai.github.io/openai-agents-python/mcp/).
-
-## Setup
+## Run it
 
 ```bash
-pip install 'bottrade[openai-agents]'
-export OPENAI_API_KEY=<your-openai-key>
-export BOTTRADE_API_KEY=<your-bottrade-key>
-python examples/openai-agents/run_agent.py --scenario sandbox-nov-2024
+python -m pip install 'bottrade[openai-agents]'
+export OPENAI_API_KEY="sk_your_openai_key_here"
+export BOTTRADE_API_KEY="bt_your_key_here"
+python examples/openai-agents/run_agent.py \
+  --scenario sandbox-nov-2024 \
+  --model gpt-4.1
 ```
 
-| Variable | Required | Purpose |
-|---|---:|---|
-| `OPENAI_API_KEY` | yes | OpenAI model calls made by the Agents SDK |
-| `BOTTRADE_API_KEY` | yes | Bearer authentication sent to BotTrade MCP |
+| Flag | Default | Meaning |
+|---|---|---|
+| `--scenario SLUG` | `sandbox-nov-2024` | Scenario for a newly created run |
+| `--model ID` | Agents SDK default | Exact OpenAI model override; record it for reproducibility |
+| `--bot-name NAME` | `OpenAI Agents MCP example` | Run label |
+| `--run-id UUID` | none | Resume this active run; no replacement is created |
+| `--max-turns N` | `250` | Agents SDK turn limit; must be positive |
+| `--publish` | off | SDK publishes only after terminal verification |
 
-Pass `--model <model-id>` to override the Agents SDK default. The script does not hardcode
-a model identifier so repository code does not silently change benchmark configuration.
+`OPENAI_API_KEY` and `BOTTRADE_API_KEY` are required. MCP authentication is an
+`Authorization: Bearer` header sent to `https://mcp.bot-trade.org/mcp`.
 
-## Expected output
+## Output and completion
 
-The final agent response should include the run ID, scenario, return, Sharpe, Sortino, max
-drawdown, and trade count. The run remains private unless `--publish` is supplied.
+The script does not assume that an agent saying “finished” means it finished. The final section is
+printed only after `get_run` reports a terminal status and `get_results` succeeds:
 
-## Troubleshooting
+```text
+BotTrade run prepared: 00000000-0000-0000-0000-000000000000 (private)
 
-- Run `run_sandbox_smoke_test` through another MCP client to confirm account auth.
-- Increase `max_turns` in the example only if a larger scenario genuinely requires it.
-- If MCP tool discovery changes, treat the live server tool list as authoritative.
+Agent report (untrusted until verification):
+Completed the requested benchmark and retrieved final metrics.
 
-Public evidence: [Claude Opus 4.8, Tech 2024 Q2](https://bot-trade.org/run/2418b6d3-3d8f-44c4-b17a-b07336ad916d).
+SDK verification:
+BotTrade benchmark complete
+  run_id:         00000000-0000-0000-0000-000000000000
+  scenario:       sandbox-nov-2024
+  status:         private
+  bars_advanced:  n/a
+  final_equity:   $100,043.40
+  return:         +0.04%
+  sharpe:         2.887
+  sortino:        3.482
+  max_drawdown:   0.02%
+  trades:         2
+  liquidated:     false
+```
+
+The numeric shape is drawn from this [published GPT-4o Mini run](https://bot-trade.org/run/e36febd5-92de-4af5-ab08-241a28e8d319); it is representative evidence, not a claim that this exact script produced that historical run.
+
+If the model stops early, the program exits nonzero with the active run ID. Resume it using
+`--run-id`; raising `--max-turns` changes the execution budget and should be recorded.
+
+Verification: CI installs and imports the current declared Agents SDK interface, checks `--help`,
+and tests terminal and incomplete-run contracts without credentials. Live model availability,
+account credit, and model access cannot be proven in credential-free CI.

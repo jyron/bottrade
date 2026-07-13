@@ -19,8 +19,8 @@ Setup:
   git clone https://github.com/virattt/ai-hedge-fund.git
   cd ai-hedge-fund
   poetry install
-  curl -sO https://bot-trade.org/api/ai_hedge_fund_adapter.py
-  export BOT_API_KEY=<your BotTrade API key>
+  poetry run pip install 'bottrade[ai-hedge-fund]'
+  export BOTTRADE_API_KEY="bt_your_key_here"
 
 Examples:
   python ai_hedge_fund_adapter.py --scenario tech-2024-q2 --publish
@@ -31,97 +31,45 @@ Examples:
 from __future__ import annotations
 
 import argparse
-import json
 import math
 import os
 import sys
-import time
-import urllib.error
-import urllib.parse
-import urllib.request
-import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
 
+from bottrade import APIError
+from bottrade import BotTradeClient as SDKClient
+
 API_BASE = os.environ.get("BOTTRADE_API", "https://bot-trade.org")
 MIN_TECHNICAL_HISTORY = 130
-RETRYABLE_HTTP_STATUSES = {502, 503, 504}
-
-
-class APIError(RuntimeError):
-    def __init__(self, status: int, detail: str):
-        super().__init__(f"HTTP {status}: {detail}")
-        self.status = status
-        self.detail = detail
 
 
 class BotTradeClient:
-    """Minimal standard-library client for the BotTrade run API."""
+    """Compatibility wrapper over the maintained, typed BotTrade SDK."""
 
     def __init__(self, api_key: str, base: str = API_BASE):
-        self.api_key = api_key
-        self.base = base.rstrip("/")
+        self.sdk = SDKClient(api_key, base_url=base)
 
-    def _request(
-        self,
-        method: str,
-        path: str,
-        *,
-        params: dict[str, str | int | float] | None = None,
-        body: dict[str, Any] | None = None,
-    ) -> Any:
-        url = self.base + path
-        if params:
-            url += "?" + urllib.parse.urlencode(params)
+    def __enter__(self) -> BotTradeClient:
+        return self
 
-        headers = {
-            "Accept": "application/json",
-            "User-Agent": "bottrade-ai-hedge-fund-adapter/1.0",
-            "X-API-Key": self.api_key,
-        }
-        data = None
-        if body is not None:
-            headers["Content-Type"] = "application/json"
-            data = json.dumps(body).encode("utf-8")
-
-        for attempt in range(4):
-            request = urllib.request.Request(url, data=data, headers=headers, method=method)
-            try:
-                with urllib.request.urlopen(request, timeout=45) as response:
-                    raw = response.read()
-                    return json.loads(raw.decode("utf-8")) if raw else None
-            except urllib.error.HTTPError as error:
-                detail = error_detail(error.read().decode("utf-8", errors="replace"))
-                if error.code not in RETRYABLE_HTTP_STATUSES or attempt == 3:
-                    raise APIError(error.code, detail) from error
-            except (urllib.error.URLError, TimeoutError) as error:
-                if attempt == 3:
-                    reason = getattr(error, "reason", str(error))
-                    raise RuntimeError(f"{method} {path} failed: {reason}") from error
-            time.sleep(0.5 * (attempt + 1))
-
-        raise AssertionError("unreachable")
+    def __exit__(self, *_: object) -> None:
+        self.sdk.close()
 
     def scenario(self, slug: str) -> dict[str, Any]:
-        return self._request("GET", f"/api/v1/scenarios/{slug}")["scenario"]
+        return self.sdk.get_scenario(slug).model_dump(mode="json")
 
     def start_run(self, slug: str, bot_name: str) -> dict[str, Any]:
-        return self._request(
-            "POST",
-            "/api/v1/runs",
-            body={"scenario_slug": slug, "bot_name": bot_name},
-        )["run"]
+        return self.sdk.start_run(slug, bot_name=bot_name).model_dump(mode="json")
 
     def snapshot(self, run_id: str) -> dict[str, Any]:
-        return self._request("GET", f"/api/v1/runs/{run_id}")
+        return self.sdk.get_run(run_id).model_dump(mode="json")
 
     def market(self, run_id: str, symbols: list[str], lookback: int) -> dict[str, Any]:
-        return self._request(
-            "GET",
-            f"/api/v1/runs/{run_id}/market",
-            params={"symbols": ",".join(symbols), "lookback": lookback},
+        return self.sdk.get_market(run_id, symbols=symbols, lookback=lookback).model_dump(
+            mode="json"
         )
 
     def queue_trade(
@@ -132,40 +80,22 @@ class BotTradeClient:
         quantity: float,
         reasoning: str,
     ) -> None:
-        self._request(
-            "POST",
-            f"/api/v1/runs/{run_id}/trades",
-            body={
-                "symbol": symbol,
-                "side": side,
-                "quantity": quantity,
-                "reasoning": reasoning[:500],
-                "idempotency_key": str(uuid.uuid4()),
-            },
+        self.sdk.queue_trade(
+            run_id,
+            symbol=symbol,
+            side=side,
+            quantity=quantity,
+            reasoning=reasoning,
         )
 
     def step(self, run_id: str) -> dict[str, Any]:
-        return self._request(
-            "POST",
-            f"/api/v1/runs/{run_id}/step",
-            body={"count": 1, "idempotency_key": str(uuid.uuid4())},
-        )
+        return self.sdk.step(run_id).model_dump(mode="json")
 
     def results(self, run_id: str) -> dict[str, Any]:
-        return self._request("GET", f"/api/v1/runs/{run_id}/results")["results"]
+        return self.sdk.get_results(run_id).model_dump(mode="json")
 
     def publish(self, run_id: str) -> None:
-        self._request("POST", f"/api/v1/runs/{run_id}/publish")
-
-
-def error_detail(raw: str) -> str:
-    try:
-        payload = json.loads(raw)
-    except json.JSONDecodeError:
-        return raw or "request failed"
-    if isinstance(payload, dict):
-        return str(payload.get("detail") or payload.get("title") or payload.get("error") or raw)
-    return raw
+        self.sdk.publish_run(run_id, confirm=True)
 
 
 def finite_float(value: Any, default: float = 0.0) -> float:
@@ -637,7 +567,10 @@ def execute_benchmark(
             break
 
     if not completed:
-        raise RuntimeError(f"run did not finish before --max-bars={config.max_bars}")
+        raise RuntimeError(
+            f"run {run_id} did not finish before --max-bars={config.max_bars}; "
+            f"resume with --run-id {run_id}"
+        )
     results = client.results(run_id)
     print_results(results)
     if config.publish:
@@ -660,7 +593,9 @@ def print_results(results: dict[str, Any]) -> None:
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run ai-hedge-fund through a BotTrade benchmark.")
     parser.add_argument(
-        "--bot-api-key", default=os.environ.get("BOT_API_KEY"), help="BotTrade API key."
+        "--bot-api-key",
+        default=os.environ.get("BOTTRADE_API_KEY") or os.environ.get("BOT_API_KEY"),
+        help="BotTrade API key (defaults to BOTTRADE_API_KEY, then BOT_API_KEY).",
     )
     parser.add_argument("--api-base", default=API_BASE, help="BotTrade API base URL.")
     parser.add_argument("--scenario", default="tech-2024-q2", help="BotTrade scenario slug.")
@@ -711,7 +646,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     args = parser.parse_args(argv)
     if not args.bot_api_key:
-        parser.error("--bot-api-key or BOT_API_KEY is required")
+        parser.error("--bot-api-key, BOTTRADE_API_KEY, or BOT_API_KEY is required")
     if args.decide_every < 1 or args.max_bars < 1 or args.history_days < 1:
         parser.error("--decide-every, --max-bars, and --history-days must be at least 1")
     if args.mode == "technical" and args.lookback < MIN_TECHNICAL_HISTORY:
@@ -752,12 +687,13 @@ def main(argv: list[str] | None = None) -> int:
             )
         else:
             technical = TechnicalStrategy()
-        execute_benchmark(
-            BotTradeClient(args.bot_api_key, args.api_base),
-            config,
-            as_of_strategy=as_of,
-            technical_strategy=technical,
-        )
+        with BotTradeClient(args.bot_api_key, args.api_base) as client:
+            execute_benchmark(
+                client,
+                config,
+                as_of_strategy=as_of,
+                technical_strategy=technical,
+            )
     except (APIError, RuntimeError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1

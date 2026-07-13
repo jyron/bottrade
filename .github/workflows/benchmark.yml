@@ -15,8 +15,8 @@ jobs:
   benchmark:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
           cache: pip
@@ -28,7 +28,7 @@ jobs:
           python examples/plain-python/run_strategy.py
           --scenario "${{ inputs.scenario }}"
           --output artifacts/result.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: bottrade-result-${{ inputs.scenario }}
           path: artifacts/result.json

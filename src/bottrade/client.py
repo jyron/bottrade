@@ -79,7 +79,7 @@ class _ClientConfig:
         self.base_url = base_url.rstrip("/")
 
     def headers(self, protected: bool) -> dict[str, str]:
-        headers = {"Accept": "application/json", "User-Agent": "bottrade-python/0.1.0"}
+        headers = {"Accept": "application/json", "User-Agent": "bottrade-python/0.1.1"}
         if protected:
             if self.api_key is None:
                 raise AuthenticationRequired(
@@ -170,6 +170,8 @@ class BotTradeClient:
         return Scenario.model_validate(payload["scenario"])
 
     def start_run(self, scenario_slug: str, *, bot_name: str | None = None) -> Run:
+        """Create a private active run; this does not advance or finish it."""
+
         body: dict[str, Any] = {"scenario_slug": scenario_slug}
         if bot_name:
             body["bot_name"] = bot_name
@@ -346,6 +348,8 @@ class AsyncBotTradeClient:
         return Scenario.model_validate(payload["scenario"])
 
     async def start_run(self, scenario_slug: str, *, bot_name: str | None = None) -> Run:
+        """Create a private active run; this does not advance or finish it."""
+
         body: dict[str, Any] = {"scenario_slug": scenario_slug}
         if bot_name:
             body["bot_name"] = bot_name

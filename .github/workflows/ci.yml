@@ -18,8 +18,8 @@ jobs:
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
@@ -32,16 +32,68 @@ jobs:
   package:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
           cache: pip
       - run: python -m pip install --upgrade pip build twine
       - run: python -m build
       - run: twine check dist/*
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: python-distributions
           path: dist/
 
+  example-interfaces:
+    name: Example interface — ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: plain-python
+            extra: "."
+            command: python examples/plain-python/run_strategy.py --help
+            interface: python -c "from bottrade import run_buy_and_hold; assert callable(run_buy_and_hold)"
+          - name: openai-agents
+            extra: ".[openai-agents]"
+            command: python examples/openai-agents/run_agent.py --help
+            interface: python -c "from agents.mcp import MCPServerStreamableHttp; MCPServerStreamableHttp(params={'url':'https://example.invalid/mcp'}, tool_filter={'blocked_tool_names':['start_run']})"
+          - name: langchain-langgraph
+            extra: ".[langchain]"
+            command: python examples/langchain-langgraph/run_agent.py --help
+            interface: python -c "from langchain_mcp_adapters.client import MultiServerMCPClient; MultiServerMCPClient({'bottrade':{'transport':'http','url':'https://example.invalid/mcp'}})"
+          - name: multi-provider
+            extra: "."
+            command: python examples/multi-provider/run_agent.py --help
+            interface: python -m pytest tests/test_examples.py -q
+          - name: ai-hedge-fund
+            extra: ".[ai-hedge-fund]"
+            command: python examples/ai-hedge-fund/adapter.py --help
+            interface: python -m pytest tests/test_ai_hedge_fund_adapter.py -q
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: python -m pip install -e '${{ matrix.extra }}'
+      - run: python -m pip install pytest
+      - run: ${{ matrix.command }}
+      - run: ${{ matrix.interface }}
+
+  ai-hedge-fund-upstream-contract:
+    name: AI Hedge Fund upstream contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          repository: virattt/ai-hedge-fund
+          ref: 09dd33167bd6b4ea63ae32e7246e70e80632cc81
+          path: upstream-ai-hedge-fund
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - run: python scripts/check_ai_hedge_fund_contract.py upstream-ai-hedge-fund

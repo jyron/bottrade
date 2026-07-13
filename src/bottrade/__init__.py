@@ -11,6 +11,7 @@ from .errors import (
     APIError,
     AuthenticationRequired,
     BotTradeError,
+    IncompleteRunError,
     PublicationConfirmationRequired,
 )
 from .models import (
@@ -26,6 +27,7 @@ from .models import (
     Scenario,
     StepResult,
 )
+from .workflows import BenchmarkOutcome, format_results, require_completed_results, run_buy_and_hold
 
 __all__ = [
     "DEFAULT_API_URL",
@@ -34,9 +36,11 @@ __all__ = [
     "AsyncBotTradeClient",
     "AuthenticationRequired",
     "Bar",
+    "BenchmarkOutcome",
     "BotTradeClient",
     "BotTradeError",
     "Fill",
+    "IncompleteRunError",
     "MarketObservation",
     "Position",
     "PublicRun",
@@ -48,6 +52,9 @@ __all__ = [
     "RunSnapshot",
     "Scenario",
     "StepResult",
+    "format_results",
+    "require_completed_results",
+    "run_buy_and_hold",
 ]
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"

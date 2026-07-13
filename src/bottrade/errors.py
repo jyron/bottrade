@@ -17,6 +17,10 @@ class PublicationConfirmationRequired(BotTradeError):
     """Raised when publication was requested without explicit confirmation."""
 
 
+class IncompleteRunError(BotTradeError):
+    """Raised when final results were requested for a run that is still active."""
+
+
 class APIError(BotTradeError):
     """A non-success response returned by BotTrade."""
 
